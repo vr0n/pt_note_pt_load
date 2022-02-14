@@ -1,10 +1,8 @@
 /*
   Parse the Elf Header
 */
-void parse_elf_header(FILE *fp) {
-  Elf64_Ehdr *ehdr;
-  ehdr = malloc(sizeof(*ehdr));
-
+void parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
+  printf("AAAAAAA\n");
   fread(ehdr->e_ident, 16, 1, fp);
   printf("\nMagic: ");
   for (int i = 0; i < EI_NIDENT; i++) {
@@ -49,6 +47,7 @@ void parse_elf_header(FILE *fp) {
 
   fread(&ehdr->e_shstrndx, sizeof(ehdr->e_shstrndx), 1, fp);
   printf("String Table Index: %u\n\n", (unsigned short)(ehdr->e_shstrndx));
+}
 
-  free(ehdr);
+void parse_program_header(FILE *fp, Elf64_Phdr *phdr) {
 }

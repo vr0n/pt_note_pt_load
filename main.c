@@ -13,7 +13,24 @@ void usage(char *program) {
 
 // TODO: Create an "ELF" struct that stores the results of these functions
 void parse_elf(FILE *fp) {
-  parse_elf_header(fp);
+  struct Elf_File *elf_file;
+  Elf64_Ehdr *ehdr;
+  Elf64_Phdr *phdr[11];
+
+  ehdr = malloc(sizeof(*ehdr));
+  phdr[11] = malloc(sizeof(*phdr) * 11);
+
+  parse_elf_header(fp, ehdr);
+
+  //int phdrs = ehdr->e_phnum;
+  //num_phdrs(phdrs);
+
+  parse_program_header(fp, *phdr);
+
+  free(ehdr);
+  free(*phdr);
+
+  return;
 }
 
 int check_modes(struct stat stats) {

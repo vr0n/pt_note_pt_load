@@ -33,10 +33,18 @@ typedef struct {
 } Elf64_Ehdr; // 64 bytes
 
 typedef struct {
-} Elf64_Shdr;
+  Elf64_Word p_type;    // 4 bytes: Segment type
+  Elf64_Word p_flags;   // 4 bytes: Segment flags
+  Elf64_Off p_offset;   // 8 bytes: Offset of this segment from start of file
+  Elf64_Addr p_vaddr;   // 8 bytes: Address in memory
+  Elf64_Addr p_paddr;   // 8 bytes: For physical addressing systems
+  Elf64_Xword p_filesz; // 8 bytes: File image size of this segment
+  Elf64_Xword p_memsz;  // 8 bytes: Memory image size of this segment
+  Elf64_Xword p_align;  // 8 bytes: Alginment constraint of this segment
+} Elf64_Phdr; // 56 bytes
 
 typedef struct {
-} Elf64_Phdr;
+} Elf64_Shdr;
 
 typedef struct {
 } Elf64_Sec;
@@ -44,5 +52,8 @@ typedef struct {
 typedef struct {
 } Elf64_Seg;
 
-typedef struct {
+typedef struct Elf_File {
+  FILE  *binary; // Pointer to FILE that is our open ELF binary
+  Elf64_Ehdr elf_header; // 64 bytes: Header
+  Elf64_Phdr prog_headers[11]; // 56 bytes each: Array of program headers
 } Elf_File;
