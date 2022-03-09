@@ -13,13 +13,14 @@ void usage(char *program) {
 
 // TODO: Create an "ELF" struct that stores the results of these functions
 void parse_elf(FILE *fp) {
+  unsigned long long entry_addr;
   struct Elf_File *elf_file;
   Elf64_Ehdr *ehdr;
   Elf64_Phdr *phdr = malloc(11 * sizeof(*phdr));
 
   ehdr = malloc(sizeof(*ehdr));
 
-  parse_elf_header(fp, ehdr);
+  entry_addr = parse_elf_header(fp, ehdr);
 
   unsigned short phdr_count = ehdr->e_phnum;
   for (int i = 0; i < phdr_count; i++) {

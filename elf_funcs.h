@@ -1,7 +1,7 @@
 /*
   Parse the Elf Header
 */
-void parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
+unsigned long long parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
   fread(ehdr->e_ident, 16, 1, fp);
   printf("\nMagic:\t");
   for (int i = 0; i < EI_NIDENT; i++) {
@@ -46,6 +46,8 @@ void parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
 
   fread(&ehdr->e_shstrndx, sizeof(ehdr->e_shstrndx), 1, fp);
   printf("String Table Index:\t%u\n", (unsigned short)(ehdr->e_shstrndx));
+
+  return ehdr->e_entry;
 }
 
 void parse_program_header(FILE *fp, Elf64_Phdr *phdr) {
@@ -66,6 +68,12 @@ void parse_program_header(FILE *fp, Elf64_Phdr *phdr) {
   fread(&phdr->p_offset, sizeof(phdr->p_offset), 1, fp);
   printf("Offset:\t0x%0.8x\n", phdr->p_offset);
 
+  if (phdr->p_type == 4) {
+    unsigned long long vaddr = 0x0c000000;
+    printf("Setting the virtual address to something crazy...\n");
+    fwrite(&vaddr, sizeof(vaddr), 1, fp);
+    fseek(fp, -8, SEEK_CUR);
+  }
   fread(&phdr->p_vaddr, sizeof(phdr->p_vaddr), 1, fp);
   printf("Vaddr:\t0x%0.8x\n", phdr->p_vaddr);
 
