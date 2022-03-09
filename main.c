@@ -15,20 +15,20 @@ void usage(char *program) {
 void parse_elf(FILE *fp) {
   struct Elf_File *elf_file;
   Elf64_Ehdr *ehdr;
-  Elf64_Phdr *phdr[11];
+  Elf64_Phdr *phdr = malloc(11 * sizeof(*phdr));
 
   ehdr = malloc(sizeof(*ehdr));
-  phdr[11] = malloc(sizeof(*phdr) * 11);
 
   parse_elf_header(fp, ehdr);
 
-  //int phdrs = ehdr->e_phnum;
-  //num_phdrs(phdrs);
-
-  parse_program_header(fp, *phdr);
+  unsigned short phdr_count = ehdr->e_phnum;
+  for (int i = 0; i < phdr_count; i++) {
+    printf("\nProgram Header: %d\n", (i + 1));
+    parse_program_header(fp, &phdr[i]);
+  }
 
   free(ehdr);
-  free(*phdr);
+  free(phdr);
 
   return;
 }
