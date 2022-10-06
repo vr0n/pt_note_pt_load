@@ -55,5 +55,5 @@ typedef struct {
 typedef struct Elf_File {
   FILE  *binary; // Pointer to FILE that is our open ELF binary
   Elf64_Ehdr elf_header; // 64 bytes: Header
-  Elf64_Phdr prog_headers[11]; // 56 bytes each: Array of program headers
+  Elf64_Phdr prog_headers[13]; // 56 bytes each: Array of program headers
 } Elf_File;

@@ -11,22 +11,46 @@ void usage(char *program) {
   fprintf(stderr, "Usage: %s <elf file>\n", program);
 }
 
+//TODO: Change all functions that use FP to use FP as first arg
+void note_to_load(FILE *fp) {
+  unsigned int perms = 7; 
+  unsigned int type = 4;
+  unsigned long long vaddr = 0xc0c0c0c0;
+
+  fseek(fp, -56, SEEK_CUR);
+  fwrite(&type, sizeof(type), 1, fp);
+  fwrite(&perms, sizeof(perms), 1, fp);
+  fseek(fp, 8, SEEK_CUR);
+  fwrite(&vaddr, sizeof(vaddr), 1, fp);
+  fseek(fp, 32, SEEK_CUR);
+
+  return;
+}
+
 // TODO: Create an "ELF" struct that stores the results of these functions
 void parse_elf(FILE *fp) {
-  unsigned long long entry_addr;
   struct Elf_File *elf_file;
   Elf64_Ehdr *ehdr;
-  Elf64_Phdr *phdr = malloc(11 * sizeof(*phdr));
+  int note_count = 0;
 
   ehdr = malloc(sizeof(*ehdr));
 
-  entry_addr = parse_elf_header(fp, ehdr);
+  parse_elf_header(fp, ehdr);
 
   unsigned short phdr_count = ehdr->e_phnum;
+  Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
+
+  printf("\n[+] Program Headers\n");
   for (int i = 0; i < phdr_count; i++) {
-    printf("\nProgram Header: %d\n", (i + 1));
     parse_program_header(fp, &phdr[i]);
+
+    if (phdr[i].p_type == 4 && note_count == 0) {
+      note_count++;
+      note_to_load(fp);
+    }
   }
+
+  //printf("\n\nEntry point is: %X\n\n", ehdr->e_entry);
 
   free(ehdr);
   free(phdr);
@@ -60,12 +84,9 @@ int main(int argc, char *argv[]) {
   FILE *fp;
   
   if (stat(elf_file, &stats) == 0) {
-    printf("Opened file. Parsing ELF...\n");
+    printf("[+] Opened file. Parsing ELF...");
 
-    if (check_modes(stats)) {
-      printf("Permissions are good!\n");
-    }
-    else {
+    if (!check_modes(stats)) {
       fprintf(stderr, "File must be readable, writeable, and executable. Exiting...\n");
       exit(1);
     }
@@ -75,12 +96,11 @@ int main(int argc, char *argv[]) {
       char *fp_err = "Could not open file: %s\n", elf_file;
       exit_on_error(fp_err, fp);
     }
-    printf("Opened file\n");
 
     parse_elf(fp);
   }
 
   fclose(fp);
-  printf("Closing %s and exiting...\n", elf_file);
+  printf("[+] Closing %s and exiting...\n", elf_file);
   return 0;
 }
