@@ -56,9 +56,10 @@ char* map_perms(unsigned int perms) {
   Parse the Elf Header
 */
 // TODO: do the text formatting in a sane way
+// TODO: separate out the print stuff from the read/write stuff
 unsigned long long parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
   fread(ehdr->e_ident, 16, 1, fp);
-  printf("\nMagic:\t");
+  printf("Magic:\t");
   for (int i = 0; i < EI_NIDENT; i++) {
     printf("%.2x ", ehdr->e_ident[i]);
   }
@@ -100,7 +101,7 @@ unsigned long long parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
   printf("Section Headers:\t%u\n", (unsigned short)(ehdr->e_shnum));
 
   fread(&ehdr->e_shstrndx, sizeof(ehdr->e_shstrndx), 1, fp);
-  printf("String Table Index:\t%u\n", (unsigned short)(ehdr->e_shstrndx));
+  printf("String Table Index:\t%u\n\n", (unsigned short)(ehdr->e_shstrndx));
 
   return ehdr->e_entry;
 }
@@ -115,16 +116,6 @@ void parse_program_header(FILE *fp, Elf64_Phdr *phdr) {
   fread(&phdr->p_offset, sizeof(phdr->p_offset), 1, fp);
   printf("Offset:\t0x%0.8x\t", phdr->p_offset);
 
-  /*
-    Set the virtual address to something we can jump to.
-    Rewind the seek so we can keep reading
-  */
-  //if (phdr->p_type == 4) {
-  //  unsigned long long vaddr = 0x0c000000;
-  //  printf("Setting the virtual address to something crazy...\n");
-  //  fwrite(&vaddr, sizeof(vaddr), 1, fp);
-  //  fseek(fp, -8, SEEK_CUR);
-  //}
   fread(&phdr->p_vaddr, sizeof(phdr->p_vaddr), 1, fp);
   printf("Vaddr:\t0x%0.8x\n", phdr->p_vaddr);
 
