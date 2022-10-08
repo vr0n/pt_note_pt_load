@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <getopt.h>
 #include "./vrn_elf.h"
 #include "./elf_funcs.h"
 
@@ -12,7 +13,11 @@ unsigned long long VADDR = 0xc0c0c0c0;
   Simple usage function
 */
 void usage(char *program) {
-  fprintf(stderr, "Usage: %s <elf file>\n", program);
+  fprintf(stderr, "Usage: %s [OPTION]... [BINARY]\n\n", program);
+  fprintf(stderr, "A tool that can infect or enumerate an ELF binary (sometimes).\n");
+  fprintf(stderr, "    -i, --infect        Infect the binary using the PT_NOTE->PT_LOAD method\n");
+  fprintf(stderr, "    -p, --parse         Gather and display information about the target binary\n");
+  exit(1);
 }
 
 /*
@@ -31,6 +36,11 @@ void exit_on_error(FILE *fp, char *err) {
 //TODO: Make it so this function can accept arguments
 void log_msg(char *log) {
   fprintf(stdout, "\033[0;34m[+] %s\n\033[0m", log);
+}
+
+void log_err(char *log) {
+  fprintf(stderr, "\033[0;31m[+] %s\n\033[0m", log);
+  exit(1); 
 }
 
 /*
@@ -72,14 +82,49 @@ void parse_elf(FILE *fp) {
 
   ehdr = malloc(sizeof(*ehdr));
 
-  log_msg("Parsing ELF header...");
+  parse_elf_header(fp, ehdr); // Parse ELF header
+
+  unsigned short phdr_count = ehdr->e_phnum;
+  Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
+  Elf64_Phdr *new_load = malloc(sizeof(*new_load));;
+
+  // Parse Program headers
+  for (int i = 0; i < phdr_count; i++) {
+    parse_program_header(fp, &phdr[i]);
+  }
+
+  // TODO: Make two functions. The convert and the print. Would be nice to have this be also an elf analysis tool.
+  log_msg("ELF Header");
+  print_elf_header(ehdr);
+  log_msg("Program Headers");
+  for (int i = 0; i < phdr_count; i++) {
+    print_program_header(&phdr[i]);
+  }
+
+  free(ehdr);
+  free(phdr);
+  free(new_load);
+
+  return;
+}
+
+/*
+  Parses the ELF we ingested from the command line.
+*/
+void infect_elf(FILE *fp) {
+  // TODO: Create an "ELF" struct that stores the results of these functions
+  struct Elf_File *elf_file;
+  Elf64_Ehdr *ehdr;
+  int note_count = 0;
+
+  ehdr = malloc(sizeof(*ehdr));
+
   parse_elf_header(fp, ehdr);
 
   unsigned short phdr_count = ehdr->e_phnum;
   Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
   Elf64_Phdr *new_load = malloc(sizeof(*new_load));;
 
-  log_msg("Parsing program headers...");
   for (int i = 0; i < phdr_count; i++) {
     parse_program_header(fp, &phdr[i]);
 
@@ -101,6 +146,7 @@ void parse_elf(FILE *fp) {
       guarantee we have no NOTE_TO_LOAD conversions yet.
     */
     if (phdr[i].p_type == 4 && note_count == 0) {
+      log_msg("Found NOTE!");
       note_count++;
       note_to_load(fp, new_load);
       log_msg("Converted NOTE:");
@@ -109,14 +155,6 @@ void parse_elf(FILE *fp) {
       print_program_header(new_load);
     }
   }
-
-  // TODO: Make two functions. The convert and the print. Would be nice to have this be also an elf analysis tool.
-  //log_msg("ELF Header");
-  //print_elf_header(ehdr);
-  //log_msg("Program Headers");
-  //for (int i = 0; i < phdr_count; i++) {
-  //  print_program_header(&phdr[i]);
-  //}
 
   free(ehdr);
   free(phdr);
@@ -139,30 +177,82 @@ int check_modes(struct stat stats) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 2) {
+  if (argc < 2) {
     usage(argv[0]);
     exit(1);
   }
-  char *elf_file = argv[1];
+
+  // long opt examples taken from the man page of getopt
+  int c;
+  int reg_arg, parse_flag, infect_flag = 0;
+  char *elf_file;
+  while (1) {
+    int option_index = 0;
+    static struct option long_options[] =
+    {
+      {"parse",  no_argument,       NULL, 0},
+      {"infect", no_argument,       NULL, 0},
+      {NULL,     0,                 NULL, 0}
+    };
+
+    c = getopt_long(argc, argv, "-:pi", long_options, &option_index);
+    if (c == -1) break;
+
+    switch(c) {
+      case 0:
+        printf("long option %s\n", long_options[option_index].name);
+        if (optarg) {
+          printf(" with arg %s\n", optarg);
+        }
+        break;
+      case 1:
+        reg_arg = 1;
+        elf_file = optarg;
+        break;
+      case 'p':
+        parse_flag = 1;
+        break;
+      case 'i':
+        infect_flag = 1;
+        break;
+      case '?':
+        usage(argv[0]);
+        break;
+      default:
+        usage(argv[0]);
+    }
+  }
+  if (!reg_arg) {
+    usage(argv[0]);
+  }
+
   struct stat stats;
   FILE *fp;
   
   if (stat(elf_file, &stats) == 0) {
-    log_msg("Opened file. Parsing ELF...\n");
+    log_msg("Opened file. Parsing ELF...");
+  } else {
+    log_err("File not found.");
+  }
 
-    if (!check_modes(stats)) {
-      fprintf(stderr, "[-] File must be readable, writeable, and executable. Exiting...");
-      exit(1);
-    }
+  if (!check_modes(stats)) {
+    log_err("File must be readable, writeable, and executable. Exiting...");
+  }
 
-    // Open file as byte readable
-    fp = fopen(elf_file, "r+b");
-    if (fp == NULL) {
-      char *fp_err = "Could not open file: %s\n", elf_file;
-      exit_on_error(fp, fp_err);
-    }
+  // Open file as byte readable
+  fp = fopen(elf_file, "r+b");
+  if (fp == NULL) {
+    char *fp_err = "Could not open file: %s", elf_file;
+    exit_on_error(fp, fp_err);
+  }
 
+  if (parse_flag) {
+    rewind(fp);
     parse_elf(fp);
+  }
+  if (infect_flag) {
+    rewind(fp);
+    infect_elf(fp);
   }
 
   fclose(fp);
