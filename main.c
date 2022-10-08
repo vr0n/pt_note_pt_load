@@ -33,7 +33,6 @@ void exit_on_error(FILE *fp, char *err) {
 /*
   Simple colorful logging function
 */
-//TODO: Make it so this function can accept arguments
 void log_msg(char *log) {
   fprintf(stdout, "\033[0;34m[+] %s\n\033[0m", log);
 }
@@ -75,8 +74,6 @@ void note_to_load(FILE *fp, Elf64_Phdr *new_load) {
   Parses the ELF we ingested from the command line.
 */
 void parse_elf(FILE *fp) {
-  // TODO: Create an "ELF" struct that stores the results of these functions
-  struct Elf_File *elf_file;
   Elf64_Ehdr *ehdr;
   int note_count = 0;
 
@@ -93,7 +90,6 @@ void parse_elf(FILE *fp) {
     parse_program_header(fp, &phdr[i]);
   }
 
-  // TODO: Make two functions. The convert and the print. Would be nice to have this be also an elf analysis tool.
   log_msg("ELF Header");
   print_elf_header(ehdr);
   log_msg("Program Headers");
@@ -112,8 +108,6 @@ void parse_elf(FILE *fp) {
   Parses the ELF we ingested from the command line.
 */
 void infect_elf(FILE *fp) {
-  // TODO: Create an "ELF" struct that stores the results of these functions
-  struct Elf_File *elf_file;
   Elf64_Ehdr *ehdr;
   int note_count = 0;
 
