@@ -78,20 +78,20 @@ void print_elf_header(Elf64_Ehdr *ehdr) {
 */
 // TODO: do the text formatting in a sane way
 unsigned long long parse_elf_header(FILE *fp, Elf64_Ehdr *ehdr) {
-  fread(ehdr->e_ident, 16, 1, fp);
-  fread(&ehdr->e_type, sizeof(ehdr->e_type), 1, fp);
-  fread(&ehdr->e_machine, sizeof(ehdr->e_machine), 1, fp);
-  fread(&ehdr->e_version, sizeof(ehdr->e_version), 1, fp);
-  fread(&ehdr->e_entry, sizeof(ehdr->e_entry), 1, fp);
-  fread(&ehdr->e_phoff, sizeof(ehdr->e_phoff), 1, fp);
-  fread(&ehdr->e_shoff, sizeof(ehdr->e_shoff), 1, fp);
-  fread(&ehdr->e_flags, sizeof(ehdr->e_flags), 1, fp);
-  fread(&ehdr->e_ehsize, sizeof(ehdr->e_ehsize), 1, fp);
+  fread(ehdr->e_ident,      16,                        1, fp);
+  fread(&ehdr->e_type,      sizeof(ehdr->e_type),      1, fp);
+  fread(&ehdr->e_machine,   sizeof(ehdr->e_machine),   1, fp);
+  fread(&ehdr->e_version,   sizeof(ehdr->e_version),   1, fp);
+  fread(&ehdr->e_entry,     sizeof(ehdr->e_entry),     1, fp);
+  fread(&ehdr->e_phoff,     sizeof(ehdr->e_phoff),     1, fp);
+  fread(&ehdr->e_shoff,     sizeof(ehdr->e_shoff),     1, fp);
+  fread(&ehdr->e_flags,     sizeof(ehdr->e_flags),     1, fp);
+  fread(&ehdr->e_ehsize,    sizeof(ehdr->e_ehsize),    1, fp);
   fread(&ehdr->e_phentsize, sizeof(ehdr->e_phentsize), 1, fp);
-  fread(&ehdr->e_phnum, sizeof(ehdr->e_phnum), 1, fp);
+  fread(&ehdr->e_phnum,     sizeof(ehdr->e_phnum),     1, fp);
   fread(&ehdr->e_shentsize, sizeof(ehdr->e_shentsize), 1, fp);
-  fread(&ehdr->e_shnum, sizeof(ehdr->e_shnum), 1, fp);
-  fread(&ehdr->e_shstrndx, sizeof(ehdr->e_shstrndx), 1, fp);
+  fread(&ehdr->e_shnum,     sizeof(ehdr->e_shnum),     1, fp);
+  fread(&ehdr->e_shstrndx,  sizeof(ehdr->e_shstrndx),  1, fp);
 
   return ehdr->e_entry;
 }

